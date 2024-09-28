@@ -1,5 +1,7 @@
 const vscode = require("vscode");
-const { LanguageClient } = require("vscode-languageclient/node");
+const { LanguageClient, AbstractMessageReader, AbstractMessageWriter } =
+  require("vscode-languageclient/node");
+const { WasmServer, instantiate } = require("./dist/mf2lsp.generated.cjs");
 
 /**
  * @typedef Configuration
@@ -75,16 +77,16 @@ exports.Mf2Extension = class Mf2Extension {
       return;
     }
 
+    await instantiate();
+
     /** @type {import("vscode-languageclient/node").ServerOptions} */
-    const serverOptions = {
-      run: {
-        command: this.#configuration.server.path,
-        args: [],
-      },
-      debug: {
-        command: this.#configuration.server.path,
-        args: [],
-      },
+    const serverOptions = async () => {
+      const io = new WasmIO();
+      /** @type {import("vscode-languageclient/node").MessageTransports} */
+      return {
+        reader: new WasmMessageReader(io),
+        writer: new WasmMessageWriter(io),
+      };
     };
 
     /** @type {import("vscode-languageclient").LanguageClientOptions} */
@@ -108,3 +110,78 @@ exports.Mf2Extension = class Mf2Extension {
     this.#ls = null;
   }
 };
+
+class WasmIO {
+  /** @type {import("./dist/mf2lsp.generated.cjs").WasmServer} */
+  #server;
+
+  /** @type {import("vscode-languageclient/node").DataCallback | null} */
+  #cb;
+
+  constructor() {
+    this.#server = new WasmServer();
+  }
+
+  /**
+   * @param {import("vscode-languageclient/node").DataCallback} callback
+   * @returns {import("vscode-languageclient/node").Disposable}
+   */
+  listen(callback) {
+    this.#cb = callback;
+    return {
+      dispose: () => {
+        this.#cb = null;
+      },
+    };
+  }
+
+  send(msg) {
+    const done = this.#server.write(msg);
+    if (done) return;
+    let message;
+    while ((message = this.#server.read()) !== null) {
+      this.#cb?.(message);
+    }
+  }
+
+  dispose() {
+    this.#server.free();
+  }
+}
+
+class WasmMessageReader extends AbstractMessageReader {
+  /** @type {WasmIO} */
+  #io;
+
+  /** @param {WasmIO} io */
+  constructor(io) {
+    super();
+    this.#io = io;
+  }
+
+  /**
+   * @param {import("vscode-languageclient/node").DataCallback} callback
+   * @returns {import("vscode-languageclient/node").Disposable}
+   */
+  listen(callback) {
+    return this.#io.listen(callback);
+  }
+}
+
+class WasmMessageWriter extends AbstractMessageWriter {
+  /** @type {WasmIO} */
+  #io;
+
+  /** @param {WasmIO} io */
+  constructor(io) {
+    super();
+    this.#io = io;
+  }
+
+  async write(msg) {
+    this.#io.send(msg);
+  }
+
+  end() {
+  }
+}

@@ -23,14 +23,15 @@
   "type": "module",
   "main": "./src/main.cjs",
   "dependencies": {
+    "@deno/shim-deno": "^0.19.2",
     "vscode-languageclient": "^9.0.1"
   },
   "devDependencies": {
-    "@types/vscode": "1.90.0",
     "@types/node": "^20.14.9",
-    "typescript": "^5.5",
+    "@types/regenerate": "^1.4.3",
+    "@types/vscode": "1.90.0",
     "regenerate": "^1.4.2",
-    "@types/regenerate": "^1.4.3"
+    "typescript": "^5.5"
   },
   "contributes": {
     "languages": [
