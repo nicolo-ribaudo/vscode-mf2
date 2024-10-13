@@ -1,3 +1,7 @@
+>  Moved to [lucacasonato/mf2-language-server](https://github.com/lucacasonato/mf2-language-server/tree/main/vscode)
+
+---
+
 # MessageFormat 2 for VS Code
 
 This extension adds syntax highlighting support for MessageFormat 2 messages
